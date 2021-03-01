@@ -260,7 +260,6 @@ if __name__ == '__main__':
         # For now, use the first match, which is also the most likely
         # candidate.
         pr = possibilities[0]
-        commit_edit(new_pr, pr)
     else:
         try:
             # TODO: Fix having to call this twice to save some regex evals
@@ -272,4 +271,5 @@ if __name__ == '__main__':
             print(e)
             print('Could not load PR {0}'.format(sys.argv[2]))
             sys.exit(1)
-        commit_edit(new_pr, pr)
+
+    commit_edit(new_pr, pr)

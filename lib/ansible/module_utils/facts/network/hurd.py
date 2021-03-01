@@ -38,7 +38,15 @@ class HurdPfinetNetwork(Network):
                 k, v = i.split('=', 1)
                 # remove '--'
                 k = k[2:]
-                if k == 'interface':
+                if k == 'address':
+                    network_facts[current_if]['ipv4']['address'] = v
+                elif k == 'address6':
+                    address, prefix = v.split('/')
+                    network_facts[current_if]['ipv6'].append({
+                        'address': address,
+                        'prefix': prefix,
+                    })
+                elif k == 'interface':
                     # remove /dev/ from /dev/eth0
                     v = v[5:]
                     network_facts['interfaces'].append(v)
@@ -49,16 +57,8 @@ class HurdPfinetNetwork(Network):
                         'ipv6': [],
                     }
                     current_if = v
-                elif k == 'address':
-                    network_facts[current_if]['ipv4']['address'] = v
                 elif k == 'netmask':
                     network_facts[current_if]['ipv4']['netmask'] = v
-                elif k == 'address6':
-                    address, prefix = v.split('/')
-                    network_facts[current_if]['ipv6'].append({
-                        'address': address,
-                        'prefix': prefix,
-                    })
         return network_facts
 
     def populate(self, collected_facts=None):

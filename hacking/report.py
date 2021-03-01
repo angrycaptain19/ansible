@@ -59,9 +59,7 @@ def parse_args():
     if argcomplete:
         argcomplete.autocomplete(parser)
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def query_database():
@@ -204,7 +202,7 @@ def create_table(cursor, name, columns):
 def populate_table(cursor, rows, name, columns):
     create_table(cursor, name, columns)
 
-    values = ', '.join([':%s' % column[0] for column in columns])
+    values = ', '.join(':%s' % column[0] for column in columns)
 
     for row in rows:
         cursor.execute('INSERT INTO %s VALUES (%s)' % (name, values), row)

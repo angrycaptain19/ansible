@@ -128,7 +128,4 @@ class ArgumentSpecValidator():
 
         self._sanitize_error_messages()
 
-        if self.error_messages:
-            return False
-        else:
-            return True
+        return not self.error_messages

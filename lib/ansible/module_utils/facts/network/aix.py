@@ -107,8 +107,6 @@ class AIXNetwork(GenericBsdIfconfigNetwork):
                         if rc != 0:
                             break
                         for line in out.splitlines():
-                            if not line:
-                                pass
                             buff = re.match('^Hardware Address: (.*)', line)
                             if buff:
                                 current_if['macaddress'] = buff.group(1)

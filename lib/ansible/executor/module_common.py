@@ -680,11 +680,7 @@ class ModuleUtilLocatorBase:
             warning_text = dep_or_ts.get('warning_text')
 
             msg = 'module_util {0} has been removed'.format('.'.join(name_parts))
-            if warning_text:
-                msg += ' ({0})'.format(warning_text)
-            else:
-                msg += '.'
-
+            msg += ' ({0})'.format(warning_text) if warning_text else '.'
             display.deprecated(msg, removal_version, removed, removal_date, self._collection_name)
         if 'redirect' in routing_entry:
             self.redirected = True
@@ -789,11 +785,14 @@ class LegacyModuleUtilLocator(ModuleUtilLocatorBase):
         if imp is None:  # python3 find module
             # find_spec needs the full module name
             self._info = info = importlib.machinery.PathFinder.find_spec('.'.join(name_parts), paths)
-            if info is not None and os.path.splitext(info.origin)[1] in importlib.machinery.SOURCE_SUFFIXES:
-                self.is_package = info.origin.endswith('/__init__.py')
-                path = info.origin
-            else:
+            if (
+                info is None
+                or os.path.splitext(info.origin)[1]
+                not in importlib.machinery.SOURCE_SUFFIXES
+            ):
                 return False
+            self.is_package = info.origin.endswith('/__init__.py')
+            path = info.origin
             self.source_code = _slurp(path)
         else:  # python2 find module
             try:
@@ -974,10 +973,10 @@ def recursive_finder(name, module_fqn, module_data, zf):
             if normalized_name not in py_module_cache:
                 modules_to_process.append((normalized_name, False, module_info.redirected))
 
-    for py_module_name in py_module_cache:
+    for py_module_name, value in py_module_cache.items():
         py_module_file_name = py_module_cache[py_module_name][1]
 
-        zf.writestr(py_module_file_name, py_module_cache[py_module_name][0])
+        zf.writestr(py_module_file_name, value[0])
         mu_file = to_text(py_module_file_name, errors='surrogate_or_strict')
         display.vvvvv("Including module_utils file %s" % mu_file)
 

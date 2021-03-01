@@ -64,8 +64,7 @@ class FreeBSDHardware(Hardware):
         return hardware_facts
 
     def get_cpu_facts(self):
-        cpu_facts = {}
-        cpu_facts['processor'] = []
+        cpu_facts = {'processor': []}
         sysctl = self.module.get_bin_path('sysctl')
         if sysctl:
             rc, out, err = self.module.run_command("%s -n hw.ncpu" % sysctl, check_rc=False)
@@ -123,9 +122,8 @@ class FreeBSDHardware(Hardware):
 
     @timeout()
     def get_mount_facts(self):
-        mount_facts = {}
+        mount_facts = {'mounts': []}
 
-        mount_facts['mounts'] = []
         fstab = get_file_content('/etc/fstab')
         if fstab:
             for line in fstab.splitlines():
@@ -196,7 +194,12 @@ class FreeBSDHardware(Hardware):
                 if rc == 0:
                     # Strip out commented lines (specific dmidecode output)
                     # FIXME: why add the fact and then test if it is json?
-                    dmi_facts[k] = ''.join([line for line in out.splitlines() if not line.startswith('#')])
+                    dmi_facts[k] = ''.join(
+                        line
+                        for line in out.splitlines()
+                        if not line.startswith('#')
+                    )
+
                     try:
                         json.dumps(dmi_facts[k])
                     except UnicodeDecodeError:

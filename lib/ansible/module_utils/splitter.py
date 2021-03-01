@@ -60,8 +60,7 @@ def _count_jinja2_blocks(token, cur_depth, open_token, close_token):
     num_close = token.count(close_token)
     if num_open != num_close:
         cur_depth += (num_open - num_close)
-        if cur_depth < 0:
-            cur_depth = 0
+        cur_depth = max(cur_depth, 0)
     return cur_depth
 
 
@@ -146,7 +145,12 @@ def split_args(args):
             if inside_quotes and not was_inside_quotes:
                 params.append(token)
                 appended = True
-            elif print_depth or block_depth or comment_depth or inside_quotes or was_inside_quotes:
+            elif (
+                print_depth
+                or block_depth
+                or comment_depth
+                or was_inside_quotes
+            ):
                 if idx == 0 and not inside_quotes and was_inside_quotes:
                     params[-1] = "%s%s" % (params[-1], token)
                 elif len(tokens) > 1:
@@ -183,15 +187,26 @@ def split_args(args):
 
             # finally, if we're at zero depth for all blocks and not inside quotes, and have not
             # yet appended anything to the list of params, we do so now
-            if not (print_depth or block_depth or comment_depth) and not inside_quotes and not appended and token != '':
+            if (
+                not print_depth
+                and not block_depth
+                and not comment_depth
+                and not inside_quotes
+                and not appended
+                and token != ''
+            ):
                 params.append(token)
 
         # if this was the last token in the list, and we have more than
         # one item (meaning we split on newlines), add a newline back here
         # to preserve the original structure
-        if len(items) > 1 and itemidx != len(items) - 1 and not line_continuation:
-            if not params[-1].endswith('\n') or item == '':
-                params[-1] += '\n'
+        if (
+            len(items) > 1
+            and itemidx != len(items) - 1
+            and not line_continuation
+            and (not params[-1].endswith('\n') or item == '')
+        ):
+            params[-1] += '\n'
 
         # always clear the line continuation flag
         line_continuation = False

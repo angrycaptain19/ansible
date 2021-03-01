@@ -104,21 +104,14 @@ class InventoryCLI(CLI):
         self.validate_conflicts(options)
 
         # there can be only one! and, at least, one!
-        used = 0
-        for opt in (options.list, options.host, options.graph):
-            if opt:
-                used += 1
+        used = sum(bool(opt) for opt in (options.list, options.host, options.graph))
         if used == 0:
             raise AnsibleOptionsError("No action selected, at least one of --host, --graph or --list needs to be specified.")
         elif used > 1:
             raise AnsibleOptionsError("Conflicting options used, only one of --host, --graph or --list can be used at the same time.")
 
         # set host pattern to default if not supplied
-        if options.args:
-            options.pattern = options.args
-        else:
-            options.pattern = 'all'
-
+        options.pattern = options.args or 'all'
         return options
 
     def run(self):
@@ -172,20 +165,24 @@ class InventoryCLI(CLI):
         if context.CLIARGS['yaml']:
             import yaml
             from ansible.parsing.yaml.dumper import AnsibleDumper
-            results = yaml.dump(stuff, Dumper=AnsibleDumper, default_flow_style=False)
+            return yaml.dump(stuff, Dumper=AnsibleDumper, default_flow_style=False)
         elif context.CLIARGS['toml']:
             from ansible.plugins.inventory.toml import toml_dumps, HAS_TOML
             if not HAS_TOML:
                 raise AnsibleError(
                     'The python "toml" library is required when using the TOML output format'
                 )
-            results = toml_dumps(stuff)
+            return toml_dumps(stuff)
         else:
             import json
             from ansible.parsing.ajson import AnsibleJSONEncoder
-            results = json.dumps(stuff, cls=AnsibleJSONEncoder, sort_keys=True, indent=4, preprocess_unsafe=True)
-
-        return results
+            return json.dumps(
+                stuff,
+                cls=AnsibleJSONEncoder,
+                sort_keys=True,
+                indent=4,
+                preprocess_unsafe=True,
+            )
 
     def _get_group_variables(self, group):
 
@@ -219,8 +216,7 @@ class InventoryCLI(CLI):
         return self._remove_internal(hostvars)
 
     def _get_group(self, gname):
-        group = self.inventory.groups.get(gname)
-        return group
+        return self.inventory.groups.get(gname)
 
     @staticmethod
     def _remove_internal(dump):
@@ -240,10 +236,10 @@ class InventoryCLI(CLI):
 
     @staticmethod
     def _show_vars(dump, depth):
-        result = []
-        for (name, val) in sorted(dump.items()):
-            result.append(InventoryCLI._graph_name('{%s = %s}' % (name, val), depth))
-        return result
+        return [
+            InventoryCLI._graph_name('{%s = %s}' % (name, val), depth)
+            for (name, val) in sorted(dump.items())
+        ]
 
     @staticmethod
     def _graph_name(name, depth=0):
@@ -282,8 +278,7 @@ class InventoryCLI(CLI):
         seen = set()
 
         def format_group(group):
-            results = {}
-            results[group.name] = {}
+            results = {group.name: {}}
             if group.name != 'all':
                 results[group.name]['hosts'] = [h.name for h in sorted(group.hosts, key=attrgetter('name'))]
             results[group.name]['children'] = []
@@ -355,10 +350,7 @@ class InventoryCLI(CLI):
         has_ungrouped = bool(next(g.hosts for g in top.child_groups if g.name == 'ungrouped'))
 
         def format_group(group):
-            results = {}
-            results[group.name] = {}
-
-            results[group.name]['children'] = []
+            results = {group.name: {'children': []}}
             for subgroup in sorted(group.child_groups, key=attrgetter('name')):
                 if subgroup.name == 'ungrouped' and not has_ungrouped:
                     continue

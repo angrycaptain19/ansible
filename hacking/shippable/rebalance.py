@@ -69,9 +69,7 @@ def parse_args():
     if argcomplete:
         argcomplete.autocomplete(parser)
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def get_raw_test_targets(args, test_path):
@@ -129,7 +127,11 @@ def rebalance(args):
 
     # Now add each test to the group with the lowest running time.
     for target_name, target_time in target_times.items():
-        index, total_time = min(enumerate([g['total_time'] for g in group_info.values()]), key=operator.itemgetter(1))
+        index, total_time = min(
+            enumerate(g['total_time'] for g in group_info.values()),
+            key=operator.itemgetter(1),
+        )
+
         group_info[index + 1]['targets'].append(target_name)
         group_info[index + 1]['total_time'] = total_time + target_time
 
@@ -168,15 +170,17 @@ def rebalance(args):
                 changed = False
                 for idx, line in enumerate(test_aliases):
                     group_match = re.match(r'shippable/(.*)/group(\d+)', line)
-                    if group_match:
-                        if int(group_match.group(2)) != group_number:
-                            new_group = 'shippable/%s/group%d\n' % (group_match.group(1), group_number)
-                            if args.verbose:
-                                print("Changing %s group from '%s' to '%s'" % (test_target, group_match.group(0),
-                                                                               new_group.rstrip()))
-                            test_aliases[idx] = new_group
-                            changed = True
-                            break
+                    if (
+                        group_match
+                        and int(group_match.group(2)) != group_number
+                    ):
+                        new_group = 'shippable/%s/group%d\n' % (group_match.group(1), group_number)
+                        if args.verbose:
+                            print("Changing %s group from '%s' to '%s'" % (test_target, group_match.group(0),
+                                                                           new_group.rstrip()))
+                        test_aliases[idx] = new_group
+                        changed = True
+                        break
                 else:
                     if args.verbose:
                         print("Test target %s matches proposed group number, no changed required" % test_target)

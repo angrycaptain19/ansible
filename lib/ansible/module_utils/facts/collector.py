@@ -113,8 +113,7 @@ class BaseFactCollector:
           Returns a dict of facts.
 
           '''
-        facts_dict = {}
-        return facts_dict
+        return {}
 
 
 def get_collector_names(valid_subsets=None,
@@ -148,27 +147,25 @@ def get_collector_names(valid_subsets=None,
     # adds of the additions in gather_subset, then
     # excludes all of the excludes, then add any explicitly
     # requested subsets.
-    gather_subset_with_min = ['min']
-    gather_subset_with_min.extend(gather_subset)
-
+    gather_subset_with_min = ['min', *gather_subset]
     # subsets we mention in gather_subset explicitly, except for 'all'/'min'
     explicitly_added = set()
 
     for subset in gather_subset_with_min:
         subset_id = subset
-        if subset_id == 'min':
-            additional_subsets.update(minimal_gather_subset)
-            continue
         if subset_id == 'all':
             additional_subsets.update(valid_subsets)
             continue
+        elif subset_id == 'min':
+            additional_subsets.update(minimal_gather_subset)
+            continue
         if subset_id.startswith('!'):
             subset = subset[1:]
-            if subset == 'min':
-                exclude_subsets.update(minimal_gather_subset)
-                continue
             if subset == 'all':
                 exclude_subsets.update(valid_subsets - minimal_gather_subset)
+                continue
+            elif subset == 'min':
+                exclude_subsets.update(minimal_gather_subset)
                 continue
             exclude = True
         else:
@@ -394,7 +391,5 @@ def collector_classes_from_gather_subset(all_collector_classes=None,
     ordered_deps = tsort(dep_map)
     ordered_collector_names = [x[0] for x in ordered_deps]
 
-    selected_collector_classes = select_collector_classes(ordered_collector_names,
+    return select_collector_classes(ordered_collector_names,
                                                           all_fact_subsets)
-
-    return selected_collector_classes

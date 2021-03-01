@@ -53,7 +53,7 @@ class PlaybookExecutor:
         self._variable_manager = variable_manager
         self._loader = loader
         self.passwords = passwords
-        self._unreachable_hosts = dict()
+        self._unreachable_hosts = {}
 
         if context.CLIARGS.get('listhosts') or context.CLIARGS.get('listtasks') or \
                 context.CLIARGS.get('listtags') or context.CLIARGS.get('syntax'):
@@ -297,19 +297,14 @@ class PlaybookExecutor:
                 serialized_batches.append(all_hosts)
                 break
             else:
-                play_hosts = []
-                for x in range(serial):
-                    if len(all_hosts) > 0:
-                        play_hosts.append(all_hosts.pop(0))
-
+                play_hosts = [all_hosts.pop(0) for _ in range(serial) if len(all_hosts) > 0]
                 serialized_batches.append(play_hosts)
 
             # increment the current batch list item number, and if we've hit
             # the end keep using the last element until we've consumed all of
             # the hosts in the inventory
             cur_item += 1
-            if cur_item > len(serial_batch_list) - 1:
-                cur_item = len(serial_batch_list) - 1
+            cur_item = min(cur_item, len(serial_batch_list) - 1)
 
         return serialized_batches
 

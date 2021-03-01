@@ -34,9 +34,7 @@ class LocalFactCollector(BaseFactCollector):
     _fact_ids = set()
 
     def collect(self, module=None, collected_facts=None):
-        local_facts = {}
-        local_facts['local'] = {}
-
+        local_facts = {'local': {}}
         if not module:
             return local_facts
 

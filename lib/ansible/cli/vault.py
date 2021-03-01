@@ -184,8 +184,13 @@ class VaultCLI(CLI):
                                          create_new_password=True)
 
             if len(vault_secrets) > 1 and not encrypt_vault_id:
-                raise AnsibleOptionsError("The vault-ids %s are available to encrypt. Specify the vault-id to encrypt with --encrypt-vault-id" %
-                                          ','.join([x[0] for x in vault_secrets]))
+                raise AnsibleOptionsError(
+                    (
+                        "The vault-ids %s are available to encrypt. Specify the vault-id to encrypt with --encrypt-vault-id"
+                        % ','.join(x[0] for x in vault_secrets)
+                    )
+                )
+
 
             if not vault_secrets:
                 raise AnsibleOptionsError("A vault password is required to use Ansible's Vault")
@@ -275,8 +280,7 @@ class VaultCLI(CLI):
         for line in vault_ciphertext.splitlines():
             lines.append('%s%s' % (' ' * indent, line))
 
-        yaml_ciphertext = '\n'.join(lines)
-        return yaml_ciphertext
+        return '\n'.join(lines)
 
     def execute_encrypt_string(self):
         ''' encrypt the supplied string using the provided vault secret '''
@@ -303,11 +307,7 @@ class VaultCLI(CLI):
             # TODO: could prompt for which vault_id to use for each plaintext string
             #       currently, it will just be the default
             hide_input = not context.CLIARGS['show_string_input']
-            if hide_input:
-                msg = "String to encrypt (hidden): "
-            else:
-                msg = "String to encrypt:"
-
+            msg = "String to encrypt (hidden): " if hide_input else "String to encrypt:"
             prompt_response = display.prompt(msg, private=hide_input)
 
             if prompt_response == '':

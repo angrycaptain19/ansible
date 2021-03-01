@@ -117,11 +117,12 @@ class RoleMixin(object):
             for entry in os.listdir(path):
                 role_path = os.path.join(path, entry)
                 full_path = os.path.join(role_path, 'meta', self.ROLE_ARGSPEC_FILE)
-                if os.path.exists(full_path):
-                    if name_filters is None or entry in name_filters:
-                        if entry not in found_names:
-                            found.add((entry, role_path))
-                        found_names.add(entry)
+                if os.path.exists(full_path) and (
+                    name_filters is None or entry in name_filters
+                ):
+                    if entry not in found_names:
+                        found.add((entry, role_path))
+                    found_names.add(entry)
         return found
 
     def _find_all_collection_roles(self, name_filters=None, collection_filter=None):
@@ -174,27 +175,16 @@ class RoleMixin(object):
 
         :returns: A tuple with the FQCN role name and a summary dict.
         """
-        if collection:
-            fqcn = '.'.join([collection, role])
-        else:
-            fqcn = role
-        summary = {}
-        summary['collection'] = collection
-        summary['entry_points'] = {}
+        fqcn = '.'.join([collection, role]) if collection else role
+        summary = {'collection': collection, 'entry_points': {}}
         for ep in argspec.keys():
             entry_spec = argspec[ep] or {}
             summary['entry_points'][ep] = entry_spec.get('short_description', '')
         return (fqcn, summary)
 
     def _build_doc(self, role, path, collection, argspec, entry_point):
-        if collection:
-            fqcn = '.'.join([collection, role])
-        else:
-            fqcn = role
-        doc = {}
-        doc['path'] = path
-        doc['collection'] = collection
-        doc['entry_points'] = {}
+        fqcn = '.'.join([collection, role]) if collection else role
+        doc = {'path': path, 'collection': collection, 'entry_points': {}}
         for ep in argspec.keys():
             if entry_point is None or ep == entry_point:
                 entry_spec = argspec[ep] or {}
@@ -236,10 +226,7 @@ class RoleMixin(object):
                },
             }
         """
-        if not collection_filter:
-            roles = self._find_all_normal_roles(roles_path)
-        else:
-            roles = []
+        roles = [] if collection_filter else self._find_all_normal_roles(roles_path)
         collroles = self._find_all_collection_roles(collection_filter=collection_filter)
 
         result = {}
@@ -406,7 +393,7 @@ class DocCLI(CLI, RoleMixin):
                 else:
                     text.append("%-*s %-*.*s" % (displace, plugin, linelimit, len(desc), desc))
 
-                if len(deprecated) > 0:
+                if deprecated:
                     text.append("\nDEPRECATED:")
                     text.extend(deprecated)
 
@@ -751,11 +738,7 @@ class DocCLI(CLI, RoleMixin):
         # generate extra data
         if plugin_type == 'module':
             # is there corresponding action plugin?
-            if plugin in action_loader:
-                doc['has_action'] = True
-            else:
-                doc['has_action'] = False
-
+            doc['has_action'] = plugin in action_loader
         # return everything as one dictionary
         return {'doc': doc, 'examples': plainexamples, 'return': returndocs, 'metadata': metadata}
 
@@ -921,9 +904,14 @@ class DocCLI(CLI, RoleMixin):
 
     @staticmethod
     def _dump_yaml(struct, indent):
-        return DocCLI.tty_ify('\n'.join([indent + line for line in
-                                         yaml.dump(struct, default_flow_style=False,
-                                                   Dumper=AnsibleDumper).split('\n')]))
+        return DocCLI.tty_ify(
+            '\n'.join(
+                indent + line
+                for line in yaml.dump(
+                    struct, default_flow_style=False, Dumper=AnsibleDumper
+                ).split('\n')
+            )
+        )
 
     @staticmethod
     def add_fields(text, fields, limit, opt_indent, return_values=False, base_indent=''):
@@ -935,11 +923,7 @@ class DocCLI(CLI, RoleMixin):
             required = opt.pop('required', False)
             if not isinstance(required, bool):
                 raise AnsibleError("Incorrect value for 'Required', a boolean is needed.: %s" % required)
-            if required:
-                opt_leadin = "="
-            else:
-                opt_leadin = "-"
-
+            opt_leadin = "=" if required else "-"
             text.append("%s%s %s" % (base_indent, opt_leadin, o))
 
             if 'description' not in opt:
@@ -966,17 +950,17 @@ class DocCLI(CLI, RoleMixin):
                     choices = "(Choices: " + ", ".join(to_text(i) for i in opt['choices']) + ")"
                 del opt['choices']
             default = ''
-            if not return_values:
-                if 'default' in opt or not required:
-                    default = "[Default: %s" % to_text(opt.pop('default', '(null)')) + "]"
+            if not return_values and ('default' in opt or not required):
+                default = "[Default: %s" % to_text(opt.pop('default', '(null)')) + "]"
 
             text.append(textwrap.fill(DocCLI.tty_ify(aliases + choices + default), limit,
                                       initial_indent=opt_indent, subsequent_indent=opt_indent))
 
-            suboptions = []
-            for subkey in ('options', 'suboptions', 'contains', 'spec'):
-                if subkey in opt:
-                    suboptions.append((subkey, opt.pop(subkey)))
+            suboptions = [
+                (subkey, opt.pop(subkey))
+                for subkey in ('options', 'suboptions', 'contains', 'spec')
+                if subkey in opt
+            ]
 
             conf = {}
             for config in ('env', 'ini', 'yaml', 'vars', 'keywords'):

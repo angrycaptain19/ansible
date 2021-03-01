@@ -50,7 +50,7 @@ from ansible.module_utils.basic import AnsibleModule
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
-    module_args = dict()
+    module_args = {}
 
     # seed the result dict in the object
     # we primarily care about changed and state

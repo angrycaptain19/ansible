@@ -103,9 +103,8 @@ class AdHocCLI(CLI):
         except AnsibleError:
             if context.CLIARGS['subset']:
                 raise
-            else:
-                hosts = []
-                display.warning("No hosts matched, nothing to do")
+            hosts = []
+            display.warning("No hosts matched, nothing to do")
 
         if context.CLIARGS['listhosts']:
             display.display('  hosts (%d):' % len(hosts))
