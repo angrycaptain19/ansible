@@ -74,18 +74,14 @@ def rate_limit(rate=None, rate_limit=None):
         last = [0.0]
 
         def ratelimited(*args, **kwargs):
-            if sys.version_info >= (3, 8):
-                real_time = time.process_time
-            else:
-                real_time = time.clock
             if minrate is not None:
+                real_time = time.process_time if sys.version_info >= (3, 8) else time.clock
                 elapsed = real_time() - last[0]
                 left = minrate - elapsed
                 if left > 0:
                     time.sleep(left)
                 last[0] = real_time()
-            ret = f(*args, **kwargs)
-            return ret
+            return f(*args, **kwargs)
 
         return ratelimited
     return wrapper
@@ -96,21 +92,23 @@ def retry(retries=None, retry_pause=1):
     def wrapper(f):
 
         def retried(*args, **kwargs):
+            if retries is None:
+                return
+
+            ret = None
             retry_count = 0
-            if retries is not None:
-                ret = None
-                while True:
-                    retry_count += 1
-                    if retry_count >= retries:
-                        raise Exception("Retry limit exceeded: %d" % retries)
-                    try:
-                        ret = f(*args, **kwargs)
-                    except Exception:
-                        pass
-                    if ret:
-                        break
-                    time.sleep(retry_pause)
-                return ret
+            while True:
+                retry_count += 1
+                if retry_count >= retries:
+                    raise Exception("Retry limit exceeded: %d" % retries)
+                try:
+                    ret = f(*args, **kwargs)
+                except Exception:
+                    pass
+                if ret:
+                    break
+                time.sleep(retry_pause)
+            return ret
 
         return retried
     return wrapper

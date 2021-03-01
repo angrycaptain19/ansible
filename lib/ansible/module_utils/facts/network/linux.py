@@ -172,9 +172,8 @@ class LinuxNetwork(Network):
                     if words[0] == 'inet':
                         if '/' in words[1]:
                             address, netmask_length = words[1].split('/')
-                            if len(words) > 3:
-                                if words[2] == 'brd':
-                                    broadcast = words[3]
+                            if len(words) > 3 and words[2] == 'brd':
+                                broadcast = words[3]
                         else:
                             # pointopoint interfaces do not have a prefix
                             address = words[1]
@@ -250,7 +249,7 @@ class LinuxNetwork(Network):
                             default_ipv6['macaddress'] = macaddress
                             default_ipv6['mtu'] = interfaces[device]['mtu']
                             default_ipv6['type'] = interfaces[device].get("type", "unknown")
-                        if not address == '::1':
+                        if address != '::1':
                             ips['all_ipv6_addresses'].append(address)
 
             ip_path = self.module.get_bin_path("ip")

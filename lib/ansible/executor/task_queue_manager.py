@@ -126,8 +126,8 @@ class TaskQueueManager:
         self._terminated = False
 
         # dictionaries to keep track of failed/unreachable hosts
-        self._failed_hosts = dict()
-        self._unreachable_hosts = dict()
+        self._failed_hosts = {}
+        self._unreachable_hosts = {}
 
         try:
             self._final_q = FinalQueue()
@@ -143,7 +143,7 @@ class TaskQueueManager:
     def _initialize_processes(self, num):
         self._workers = []
 
-        for i in range(num):
+        for _ in range(num):
             self._workers.append(None)
 
     def load_callbacks(self):
@@ -165,10 +165,9 @@ class TaskQueueManager:
         elif isinstance(self._stdout_callback, string_types):
             if self._stdout_callback not in callback_loader:
                 raise AnsibleError("Invalid callback for stdout specified: %s" % self._stdout_callback)
-            else:
-                self._stdout_callback = callback_loader.get(self._stdout_callback)
-                self._stdout_callback.set_options()
-                stdout_callback_loaded = True
+            self._stdout_callback = callback_loader.get(self._stdout_callback)
+            self._stdout_callback.set_options()
+            stdout_callback_loaded = True
         else:
             raise AnsibleError("callback must be an instance of CallbackBase or the name of a callback plugin")
 
@@ -346,25 +345,26 @@ class TaskQueueManager:
             pass
 
     def _cleanup_processes(self):
-        if hasattr(self, '_workers'):
-            for attempts_remaining in range(C.WORKER_SHUTDOWN_POLL_COUNT - 1, -1, -1):
-                if not any(worker_prc and worker_prc.is_alive() for worker_prc in self._workers):
-                    break
+        if not hasattr(self, '_workers'):
+            return
+        for attempts_remaining in range(C.WORKER_SHUTDOWN_POLL_COUNT - 1, -1, -1):
+            if not any(worker_prc and worker_prc.is_alive() for worker_prc in self._workers):
+                break
 
-                if attempts_remaining:
-                    time.sleep(C.WORKER_SHUTDOWN_POLL_DELAY)
-                else:
-                    display.warning('One or more worker processes are still running and will be terminated.')
+            if attempts_remaining:
+                time.sleep(C.WORKER_SHUTDOWN_POLL_DELAY)
+            else:
+                display.warning('One or more worker processes are still running and will be terminated.')
 
-            for worker_prc in self._workers:
-                if worker_prc and worker_prc.is_alive():
-                    try:
-                        worker_prc.terminate()
-                    except AttributeError:
-                        pass
+        for worker_prc in self._workers:
+            if worker_prc and worker_prc.is_alive():
+                try:
+                    worker_prc.terminate()
+                except AttributeError:
+                    pass
 
     def clear_failed_hosts(self):
-        self._failed_hosts = dict()
+        self._failed_hosts = {}
 
     def get_inventory(self):
         return self._inventory

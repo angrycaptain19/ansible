@@ -111,12 +111,10 @@ def _return_datastructure_name(obj):
         return
     elif isinstance(obj, Mapping):
         for element in obj.items():
-            for subelement in _return_datastructure_name(element[1]):
-                yield subelement
+            yield from _return_datastructure_name(element[1])
     elif is_iterable(obj):
         for element in obj:
-            for subelement in _return_datastructure_name(element):
-                yield subelement
+            yield from _return_datastructure_name(element)
     elif isinstance(obj, (bool, NoneType)):
         # This must come before int because bools are also ints
         return
@@ -355,23 +353,28 @@ def list_no_log_values(argument_spec, params):
             wanted_type = arg_opts.get('type')
             sub_parameters = params.get(arg_name)
 
-            if sub_parameters is not None:
-                if wanted_type == 'dict' or (wanted_type == 'list' and arg_opts.get('elements', '') == 'dict'):
-                    # Sub parameters can be a dict or list of dicts. Ensure parameters are always a list.
-                    if not isinstance(sub_parameters, list):
-                        sub_parameters = [sub_parameters]
+            if sub_parameters is not None and (
+                wanted_type == 'dict'
+                or (
+                    wanted_type == 'list'
+                    and arg_opts.get('elements', '') == 'dict'
+                )
+            ):
+                # Sub parameters can be a dict or list of dicts. Ensure parameters are always a list.
+                if not isinstance(sub_parameters, list):
+                    sub_parameters = [sub_parameters]
 
-                    for sub_param in sub_parameters:
-                        # Validate dict fields in case they came in as strings
+                for sub_param in sub_parameters:
+                    # Validate dict fields in case they came in as strings
 
-                        if isinstance(sub_param, string_types):
-                            sub_param = check_type_dict(sub_param)
+                    if isinstance(sub_param, string_types):
+                        sub_param = check_type_dict(sub_param)
 
-                        if not isinstance(sub_param, Mapping):
-                            raise TypeError("Value '{1}' in the sub parameter field '{0}' must by a {2}, "
-                                            "not '{1.__class__.__name__}'".format(arg_name, sub_param, wanted_type))
+                    if not isinstance(sub_param, Mapping):
+                        raise TypeError("Value '{1}' in the sub parameter field '{0}' must by a {2}, "
+                                        "not '{1.__class__.__name__}'".format(arg_name, sub_param, wanted_type))
 
-                        no_log_values.update(list_no_log_values(sub_argument_spec, sub_param))
+                    no_log_values.update(list_no_log_values(sub_argument_spec, sub_param))
 
     return no_log_values
 
@@ -391,10 +394,7 @@ def list_deprecations(argument_spec, parameters, prefix=''):
     deprecations = []
     for arg_name, arg_opts in argument_spec.items():
         if arg_name in parameters:
-            if prefix:
-                sub_prefix = '%s["%s"]' % (prefix, arg_name)
-            else:
-                sub_prefix = arg_name
+            sub_prefix = '%s["%s"]' % (prefix, arg_name) if prefix else arg_name
             if arg_opts.get('removed_at_date') is not None:
                 deprecations.append({
                     'msg': "Param '%s' is deprecated. See the module docs for more information" % sub_prefix,
@@ -563,12 +563,7 @@ def get_unsupported_parameters(argument_spec, parameters, legal_inputs=None):
     if legal_inputs is None:
         aliases, legal_inputs = handle_aliases(argument_spec, parameters)
 
-    unsupported_parameters = set()
-    for k in parameters.keys():
-        if k not in legal_inputs:
-            unsupported_parameters.add(k)
-
-    return unsupported_parameters
+    return {k for k in parameters.keys() if k not in legal_inputs}
 
 
 def get_type_validator(wanted):
@@ -711,9 +706,14 @@ def validate_argument_values(argument_spec, parameters, options_context=None, er
             if param in parameters:
                 # Allow one or more when type='list' param with choices
                 if isinstance(parameters[param], list):
-                    diff_list = ", ".join([item for item in parameters[param] if item not in choices])
+                    diff_list = ", ".join(
+                        item
+                        for item in parameters[param]
+                        if item not in choices
+                    )
+
                     if diff_list:
-                        choices_str = ", ".join([to_native(c) for c in choices])
+                        choices_str = ", ".join(to_native(c) for c in choices)
                         msg = "value of %s must be one or more of: %s. Got no match for: %s" % (param, choices_str, diff_list)
                         if options_context:
                             msg += " found in %s" % " -> ".join(options_context)

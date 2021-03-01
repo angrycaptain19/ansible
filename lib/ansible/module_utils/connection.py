@@ -103,10 +103,12 @@ def exec_command(module, command):
 
 def request_builder(method_, *args, **kwargs):
     reqid = str(uuid.uuid4())
-    req = {'jsonrpc': '2.0', 'method': method_, 'id': reqid}
-    req['params'] = (args, kwargs)
-
-    return req
+    return {
+        'jsonrpc': '2.0',
+        'method': method_,
+        'id': reqid,
+        'params': (args, kwargs),
+    }
 
 
 class ConnectionError(Exception):

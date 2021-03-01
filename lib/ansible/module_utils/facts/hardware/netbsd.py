@@ -78,7 +78,7 @@ class NetBSDHardware(Hardware):
             key = data[0].strip()
             # model name is for Intel arch, Processor (mind the uppercase P)
             # works for some ARM devices, like the Sheevaplug.
-            if key == 'model name' or key == 'Processor':
+            if key in ['model name', 'Processor']:
                 if 'processor' not in cpu_facts:
                     cpu_facts['processor'] = []
                 cpu_facts['processor'].append(data[1].strip())
@@ -89,7 +89,7 @@ class NetBSDHardware(Hardware):
                     sockets[physid] = 1
             elif key == 'cpu cores':
                 sockets[physid] = int(data[1].strip())
-        if len(sockets) > 0:
+        if sockets:
             cpu_facts['processor_count'] = len(sockets)
             cpu_facts['processor_cores'] = reduce(lambda x, y: x + y, sockets.values())
         else:
@@ -113,9 +113,8 @@ class NetBSDHardware(Hardware):
 
     @timeout()
     def get_mount_facts(self):
-        mount_facts = {}
+        mount_facts = {'mounts': []}
 
-        mount_facts['mounts'] = []
         fstab = get_file_content('/etc/fstab')
 
         if not fstab:
@@ -135,7 +134,6 @@ class NetBSDHardware(Hardware):
         return mount_facts
 
     def get_dmi_facts(self):
-        dmi_facts = {}
         # We don't use dmidecode(8) here because:
         # - it would add dependency on an external package
         # - dmidecode(8) can only be ran as root
@@ -150,11 +148,11 @@ class NetBSDHardware(Hardware):
             'machdep.dmi.system-vendor': 'system_vendor',
         }
 
-        for mib in sysctl_to_dmi:
-            if mib in self.sysctl:
-                dmi_facts[sysctl_to_dmi[mib]] = self.sysctl[mib]
-
-        return dmi_facts
+        return {
+            sysctl_to_dmi[mib]: self.sysctl[mib]
+            for mib in sysctl_to_dmi
+            if mib in self.sysctl
+        }
 
 
 class NetBSDHardwareCollector(HardwareCollector):

@@ -47,10 +47,7 @@ class OpenBSDPkgMgrFactCollector(BaseFactCollector):
     _platform = 'OpenBSD'
 
     def collect(self, module=None, collected_facts=None):
-        facts_dict = {}
-
-        facts_dict['pkg_mgr'] = 'openbsd_pkg'
-        return facts_dict
+        return {'pkg_mgr': 'openbsd_pkg'}
 
 
 # the fact ends up being 'pkg_mgr' so stick with that naming/spelling
@@ -96,13 +93,13 @@ class PkgMgrFactCollector(BaseFactCollector):
         return pkg_mgr_name
 
     def _check_apt_flavor(self, pkg_mgr_name):
-        # Check if '/usr/bin/apt' is APT-RPM or an ordinary (dpkg-based) APT.
-        # There's rpm package on Debian, so checking if /usr/bin/rpm exists
-        # is not enough. Instead ask RPM if /usr/bin/apt-get belongs to some
-        # RPM package.
-        rpm_query = '/usr/bin/rpm -q --whatprovides /usr/bin/apt-get'.split()
         if os.path.exists('/usr/bin/rpm'):
             with open(os.devnull, 'w') as null:
+                # Check if '/usr/bin/apt' is APT-RPM or an ordinary (dpkg-based) APT.
+                # There's rpm package on Debian, so checking if /usr/bin/rpm exists
+                # is not enough. Instead ask RPM if /usr/bin/apt-get belongs to some
+                # RPM package.
+                rpm_query = '/usr/bin/rpm -q --whatprovides /usr/bin/apt-get'.split()
                 try:
                     subprocess.check_call(rpm_query, stdout=null, stderr=null)
                     pkg_mgr_name = 'apt_rpm'

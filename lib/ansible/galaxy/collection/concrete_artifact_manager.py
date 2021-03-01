@@ -318,11 +318,7 @@ def parse_scm(collection, version):
     elif version == '*' or not version:
         version = 'HEAD'
 
-    if collection.startswith('git+'):
-        path = collection[4:]
-    else:
-        path = collection
-
+    path = collection[4:] if collection.startswith('git+') else collection
     path, fragment = urldefrag(path)
     fragment = fragment.strip(os.path.sep)
 

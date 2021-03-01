@@ -65,9 +65,8 @@ class OpenBSDHardware(Hardware):
 
     @timeout.timeout()
     def get_mount_facts(self):
-        mount_facts = {}
+        mount_facts = {'mounts': []}
 
-        mount_facts['mounts'] = []
         fstab = get_file_content('/etc/fstab')
         if fstab:
             for line in fstab.splitlines():
@@ -131,9 +130,9 @@ class OpenBSDHardware(Hardware):
 
     def get_processor_facts(self):
         cpu_facts = {}
-        processor = []
-        for i in range(int(self.sysctl['hw.ncpu'])):
-            processor.append(self.sysctl['hw.model'])
+        processor = [
+            self.sysctl['hw.model'] for _ in range(int(self.sysctl['hw.ncpu']))
+        ]
 
         cpu_facts['processor'] = processor
         # The following is partly a lie because there is no reliable way to
@@ -150,14 +149,12 @@ class OpenBSDHardware(Hardware):
 
     def get_device_facts(self):
         device_facts = {}
-        devices = []
-        devices.extend(self.sysctl['hw.disknames'].split(','))
+        devices = list(self.sysctl['hw.disknames'].split(','))
         device_facts['devices'] = devices
 
         return device_facts
 
     def get_dmi_facts(self):
-        dmi_facts = {}
         # We don't use dmidecode(8) here because:
         # - it would add dependency on an external package
         # - dmidecode(8) can only be ran as root
@@ -172,11 +169,11 @@ class OpenBSDHardware(Hardware):
             'hw.vendor': 'system_vendor',
         }
 
-        for mib in sysctl_to_dmi:
-            if mib in self.sysctl:
-                dmi_facts[sysctl_to_dmi[mib]] = self.sysctl[mib]
-
-        return dmi_facts
+        return {
+            sysctl_to_dmi[mib]: self.sysctl[mib]
+            for mib in sysctl_to_dmi
+            if mib in self.sysctl
+        }
 
 
 class OpenBSDHardwareCollector(HardwareCollector):

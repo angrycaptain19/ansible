@@ -94,9 +94,7 @@ def parse_args():
     if argcomplete:
         argcomplete.autocomplete(parser)
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def optional_directory(value):
@@ -251,7 +249,7 @@ def incidental_report(args):
                          'As targets are removed, exclusive coverage on the remaining targets will increase.\n')
 
 
-def get_target_name_from_plugin_path(path):  # type: (str) -> str
+def get_target_name_from_plugin_path(path):    # type: (str) -> str
     """Return the integration test target name for the given plugin path."""
     parts = os.path.splitext(path)[0].split(os.path.sep)
     plugin_name = parts[-1]
@@ -268,11 +266,9 @@ def get_target_name_from_plugin_path(path):  # type: (str) -> str
         raise ApplicationError('Cannot determine plugin type from plugin path: %s' % path)
 
     if plugin_type is None:
-        target_name = plugin_name
+        return plugin_name
     else:
-        target_name = '%s_%s' % (plugin_type, plugin_name)
-
-    return target_name
+        return '%s_%s' % (plugin_type, plugin_name)
 
 
 class CoverageData:
@@ -292,11 +288,25 @@ class CoverageData:
 
         # make sure the test matrix is complete
         matrix_include = run['cleanRunYml']['matrix']['include']
-        matrix_jobs = list((idx, dict(tuple(item.split('=', 1)) for item in value['env'])) for idx, value in enumerate(matrix_include, start=1))
-        sanity_job_numbers = set(idx for idx, env in matrix_jobs if env['T'].startswith('sanity/'))
-        units_job_numbers = set(idx for idx, env in matrix_jobs if env['T'].startswith('units/'))
-        expected_job_numbers = set(idx for idx, env in matrix_jobs)
-        actual_job_numbers = set(int(os.path.relpath(path, result_path).split(os.path.sep)[0]) for path in self.paths)
+        matrix_jobs = [
+            (idx, dict(tuple(item.split('=', 1)) for item in value['env']))
+            for idx, value in enumerate(matrix_include, start=1)
+        ]
+
+        sanity_job_numbers = {
+            idx for idx, env in matrix_jobs if env['T'].startswith('sanity/')
+        }
+
+        units_job_numbers = {
+            idx for idx, env in matrix_jobs if env['T'].startswith('units/')
+        }
+
+        expected_job_numbers = {idx for idx, env in matrix_jobs}
+        actual_job_numbers = {
+            int(os.path.relpath(path, result_path).split(os.path.sep)[0])
+            for path in self.paths
+        }
+
 
         self.missing_jobs = expected_job_numbers - actual_job_numbers - sanity_job_numbers - units_job_numbers
         self.extra_jobs = actual_job_numbers - expected_job_numbers - sanity_job_numbers - units_job_numbers
@@ -367,14 +377,12 @@ class SourceFile:
 
         is_arcs = ':' in dict(coverage_points).popitem()[0]
 
-        if is_arcs:
-            parse = parse_arc
-        else:
-            parse = int
-
-        self.covered_points = set(parse(v) for v in coverage_points)
+        parse = parse_arc if is_arcs else int
+        self.covered_points = {parse(v) for v in coverage_points}
         self.covered_arcs = self.covered_points if is_arcs else None
-        self.covered_lines = set(abs(p[0]) for p in self.covered_points) | set(abs(p[1]) for p in self.covered_points)
+        self.covered_lines = {abs(p[0]) for p in self.covered_points} | {
+            abs(p[1]) for p in self.covered_points
+        }
 
 
 def collect_sources(data_path, git, coverage_data):

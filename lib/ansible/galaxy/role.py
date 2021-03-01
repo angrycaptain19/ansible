@@ -140,11 +140,7 @@ class GalaxyRole(object):
 
     @property
     def _exists(self):
-        for path in self.paths:
-            if os.path.isdir(path):
-                return True
-
-        return False
+        return any(os.path.isdir(path) for path in self.paths)
 
     def _write_galaxy_install_info(self):
         """

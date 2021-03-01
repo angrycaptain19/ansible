@@ -74,9 +74,7 @@ def parse_args():
     if argcomplete:
         argcomplete.autocomplete(parser)
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def start_run(args):
@@ -110,9 +108,7 @@ def start_run(args):
 
     # new build
 
-    data = dict(
-        globalEnv=dict((kp[0], kp[1]) for kp in args.env or [])
-    )
+    data = dict(globalEnv={kp[0]: kp[1] for kp in args.env or []})
 
     if args.branch:
         data['branchName'] = args.branch

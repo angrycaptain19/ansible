@@ -255,8 +255,12 @@ def build_collection(u_collection_path, u_output_path, force):
             raise AnsibleError("The file '%s' already exists. You can use --force to re-create "
                                "the collection artifact." % to_native(b_collection_output))
 
-    collection_output = _build_collection_tar(b_collection_path, b_collection_output, collection_manifest, file_manifest)
-    return collection_output
+    return _build_collection_tar(
+        b_collection_path,
+        b_collection_output,
+        collection_manifest,
+        file_manifest,
+    )
 
 
 def download_collections(
@@ -266,7 +270,7 @@ def download_collections(
         no_deps,  # type: bool
         allow_pre_release,  # type: bool
         artifacts_manager,  # type: ConcreteArtifactsManager
-):  # type: (...) -> None
+):    # type: (...) -> None
     """Download Ansible collections as their tarball from a Galaxy server to the path specified and creates a requirements
     file of the downloaded requirements to be used for an install.
 
@@ -290,11 +294,11 @@ def download_collections(
 
     b_output_path = to_bytes(output_path, errors='surrogate_or_strict')
 
-    requirements = []
     with _display_progress(
-            "Starting collection download process to '{path!s}'".
-            format(path=output_path),
-    ):
+                "Starting collection download process to '{path!s}'".
+                format(path=output_path),
+        ):
+        requirements = []
         for fqcn, concrete_coll_pin in dep_map.copy().items():  # FIXME: move into the provider
             if concrete_coll_pin.is_virtual:
                 display.v(
@@ -829,7 +833,7 @@ def _build_files_manifest(b_collection_path, namespace, name, ignore_patterns):
 # FIXME: accept a dict produced from `galaxy.yml` instead of separate args
 def _build_manifest(namespace, name, version, authors, readme, tags, description, license_file,
                     dependencies, repository, documentation, homepage, issues, **kwargs):
-    manifest = {
+    return {
         'collection_info': {
             'namespace': namespace,
             'name': name,
@@ -839,7 +843,8 @@ def _build_manifest(namespace, name, version, authors, readme, tags, description
             'tags': tags,
             'description': description,
             'license': kwargs['license'],
-            'license_file': license_file or None,  # Handle galaxy.yml having an empty string (None)
+            'license_file': license_file
+            or None,  # Handle galaxy.yml having an empty string (None)
             'dependencies': dependencies,
             'repository': repository,
             'documentation': documentation,
@@ -851,12 +856,10 @@ def _build_manifest(namespace, name, version, authors, readme, tags, description
             'ftype': 'file',
             'chksum_type': 'sha256',
             'chksum_sha256': None,  # Filled out in _build_collection_tar
-            'format': MANIFEST_FORMAT
+            'format': MANIFEST_FORMAT,
         },
         'format': MANIFEST_FORMAT,
     }
-
-    return manifest
 
 
 def _build_collection_tar(
@@ -970,8 +973,7 @@ def _build_collection_dir(b_collection_path, b_collection_output, collection_man
             shutil.copyfile(src_file, dest_file)
 
         os.chmod(dest_file, mode)
-    collection_output = to_text(b_collection_output)
-    return collection_output
+    return to_text(b_collection_output)
 
 
 def find_existing_collections(path, artifacts_manager):

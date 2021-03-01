@@ -19,8 +19,7 @@ from ansible.module_utils.facts.collector import BaseFactCollector
 def get_uname(module, flags=('-v')):
     if isinstance(flags, str):
         flags = flags.split()
-    command = ['uname']
-    command.extend(flags)
+    command = ['uname', *flags]
     rc, out, err = module.run_command(command)
     if rc == 0:
         return out
@@ -241,9 +240,7 @@ class DistributionFiles:
         return True, openwrt_facts
 
     def parse_distribution_file_Alpine(self, name, data, path, collected_facts):
-        alpine_facts = {}
-        alpine_facts['distribution'] = 'Alpine'
-        alpine_facts['distribution_version'] = data
+        alpine_facts = {'distribution': 'Alpine', 'distribution_version': data}
         return True, alpine_facts
 
     def parse_distribution_file_SUSE(self, name, data, path, collected_facts):
@@ -364,18 +361,17 @@ class DistributionFiles:
 
     def parse_distribution_file_Mandriva(self, name, data, path, collected_facts):
         mandriva_facts = {}
-        if 'Mandriva' in data:
-            mandriva_facts['distribution'] = 'Mandriva'
-            version = re.search('DISTRIB_RELEASE="(.*)"', data)
-            if version:
-                mandriva_facts['distribution_version'] = version.groups()[0]
-            release = re.search('DISTRIB_CODENAME="(.*)"', data)
-            if release:
-                mandriva_facts['distribution_release'] = release.groups()[0]
-            mandriva_facts['distribution'] = name
-        else:
+        if 'Mandriva' not in data:
             return False, mandriva_facts
 
+        mandriva_facts['distribution'] = 'Mandriva'
+        version = re.search('DISTRIB_RELEASE="(.*)"', data)
+        if version:
+            mandriva_facts['distribution_version'] = version.groups()[0]
+        release = re.search('DISTRIB_CODENAME="(.*)"', data)
+        if release:
+            mandriva_facts['distribution_release'] = release.groups()[0]
+        mandriva_facts['distribution'] = name
         return True, mandriva_facts
 
     def parse_distribution_file_NA(self, name, data, path, collected_facts):
@@ -394,32 +390,30 @@ class DistributionFiles:
         # FIXME: pass in ro copy of facts for this kind of thing
         distro = get_distribution()
 
-        if distro.lower() == 'coreos':
-            if not data:
-                # include fix from #15230, #15228
-                # TODO: verify this is ok for above bugs
-                return False, coreos_facts
-            release = re.search("^GROUP=(.*)", data)
-            if release:
-                coreos_facts['distribution_release'] = release.group(1).strip('"')
-        else:
+        if distro.lower() != 'coreos':
             return False, coreos_facts  # TODO: remove if tested without this
 
+        if not data:
+            # include fix from #15230, #15228
+            # TODO: verify this is ok for above bugs
+            return False, coreos_facts
+        release = re.search("^GROUP=(.*)", data)
+        if release:
+            coreos_facts['distribution_release'] = release.group(1).strip('"')
         return True, coreos_facts
 
     def parse_distribution_file_Flatcar(self, name, data, path, collected_facts):
         flatcar_facts = {}
         distro = get_distribution()
 
-        if distro.lower() == 'flatcar':
-            if not data:
-                return False, flatcar_facts
-            release = re.search("^GROUP=(.*)", data)
-            if release:
-                flatcar_facts['distribution_release'] = release.group(1).strip('"')
-        else:
+        if distro.lower() != 'flatcar':
             return False, flatcar_facts
 
+        if not data:
+            return False, flatcar_facts
+        release = re.search("^GROUP=(.*)", data)
+        if release:
+            flatcar_facts['distribution_release'] = release.group(1).strip('"')
         return True, flatcar_facts
 
     def parse_distribution_file_ClearLinux(self, name, data, path, collected_facts):
@@ -550,8 +544,7 @@ class Distribution(object):
         return hpux_facts
 
     def get_distribution_Darwin(self):
-        darwin_facts = {}
-        darwin_facts['distribution'] = 'MacOSX'
+        darwin_facts = {'distribution': 'MacOSX'}
         rc, out, err = self.module.run_command("/usr/bin/sw_vers -productVersion")
         data = out.split()[-1]
         if data:
@@ -560,8 +553,7 @@ class Distribution(object):
         return darwin_facts
 
     def get_distribution_FreeBSD(self):
-        freebsd_facts = {}
-        freebsd_facts['distribution_release'] = platform.release()
+        freebsd_facts = {'distribution_release': platform.release()}
         data = re.search(r'(\d+)\.(\d+)-(RELEASE|STABLE|CURRENT|RC|PRERELEASE).*', freebsd_facts['distribution_release'])
         if 'trueos' in platform.version():
             freebsd_facts['distribution'] = 'TrueOS'
@@ -571,8 +563,7 @@ class Distribution(object):
         return freebsd_facts
 
     def get_distribution_OpenBSD(self):
-        openbsd_facts = {}
-        openbsd_facts['distribution_version'] = platform.release()
+        openbsd_facts = {'distribution_version': platform.release()}
         rc, out, err = self.module.run_command("/sbin/sysctl -n kern.version")
         match = re.match(r'OpenBSD\s[0-9]+.[0-9]+-(\S+)\s.*', out)
         if match:
@@ -607,9 +598,7 @@ class Distribution(object):
         return netbsd_facts
 
     def get_distribution_SMGL(self):
-        smgl_facts = {}
-        smgl_facts['distribution'] = 'Source Mage GNU/Linux'
-        return smgl_facts
+        return {'distribution': 'Source Mage GNU/Linux'}
 
     def get_distribution_SunOS(self):
         sunos_facts = {}
@@ -667,11 +656,8 @@ class DistributionFactCollector(BaseFactCollector):
 
     def collect(self, module=None, collected_facts=None):
         collected_facts = collected_facts or {}
-        facts_dict = {}
         if not module:
-            return facts_dict
+            return {}
 
         distribution = Distribution(module=module)
-        distro_facts = distribution.get_distribution_facts()
-
-        return distro_facts
+        return distribution.get_distribution_facts()

@@ -372,11 +372,7 @@ class InventoryManager(object):
         hosts = []
 
         # Check if pattern already computed
-        if isinstance(pattern, list):
-            pattern_list = pattern[:]
-        else:
-            pattern_list = [pattern]
-
+        pattern_list = pattern[:] if isinstance(pattern, list) else [pattern]
         if pattern_list:
             if not ignore_limits and self._subset:
                 pattern_list.extend(self._subset)
@@ -396,7 +392,7 @@ class InventoryManager(object):
                 # mainly useful for hostvars[host] access
                 if not ignore_limits and self._subset:
                     # exclude hosts not in a subset, if defined
-                    subset_uuids = set(s._uuid for s in self._evaluate_patterns(self._subset))
+                    subset_uuids = {s._uuid for s in self._evaluate_patterns(self._subset)}
                     hosts = [h for h in hosts if h._uuid in subset_uuids]
 
                 if not ignore_restrictions and self._restriction:
@@ -441,7 +437,7 @@ class InventoryManager(object):
                     that = set(that)
                     hosts = [h for h in hosts if h in that]
                 else:
-                    existing_hosts = set(y.name for y in hosts)
+                    existing_hosts = {y.name for y in hosts}
                     hosts.extend([h for h in that if h.name not in existing_hosts])
         return hosts
 
@@ -541,12 +537,12 @@ class InventoryManager(object):
 
         (start, end) = subscript
 
-        if end:
-            if end == -1:
-                end = len(hosts) - 1
-            return hosts[start:end + 1]
-        else:
+        if not end:
             return [hosts[start]]
+
+        if end == -1:
+            end = len(hosts) - 1
+        return hosts[start:end + 1]
 
     def _enumerate_matches(self, pattern):
         """
@@ -612,7 +608,7 @@ class InventoryManager(object):
             return
         elif not isinstance(restriction, list):
             restriction = [restriction]
-        self._restriction = set(to_text(h.name) for h in restriction)
+        self._restriction = {to_text(h.name) for h in restriction}
 
     def subset(self, subset_pattern):
         """

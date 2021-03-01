@@ -23,10 +23,8 @@ from ansible.module_utils._text import to_text
 
 def get_sysctl(module, prefixes):
     sysctl_cmd = module.get_bin_path('sysctl')
-    cmd = [sysctl_cmd]
-    cmd.extend(prefixes)
-
-    sysctl = dict()
+    cmd = [sysctl_cmd, *prefixes]
+    sysctl = {}
 
     try:
         rc, out, err = module.run_command(cmd)

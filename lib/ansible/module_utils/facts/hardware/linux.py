@@ -383,7 +383,12 @@ class LinuxHardware(Hardware):
                     (rc, out, err) = self.module.run_command('%s -s %s' % (dmi_bin, v))
                     if rc == 0:
                         # Strip out commented lines (specific dmidecode output)
-                        thisvalue = ''.join([line for line in out.splitlines() if not line.startswith('#')])
+                        thisvalue = ''.join(
+                            line
+                            for line in out.splitlines()
+                            if not line.startswith('#')
+                        )
+
                         try:
                             json.dumps(thisvalue)
                         except UnicodeDecodeError:
@@ -603,7 +608,7 @@ class LinuxHardware(Hardware):
                     retval[target].add(entry)
                 except OSError:
                     continue
-            return dict((k, list(sorted(v))) for (k, v) in iteritems(retval))
+            return {k: list(sorted(v)) for (k, v) in iteritems(retval)}
         except OSError:
             return {}
 
@@ -615,7 +620,7 @@ class LinuxHardware(Hardware):
                 device = elements[3]
                 target = elements[5]
                 retval[target].add(device)
-            return dict((k, list(sorted(v))) for (k, v) in iteritems(retval))
+            return {k: list(sorted(v)) for (k, v) in iteritems(retval)}
         except OSError:
             return {}
 
@@ -689,9 +694,7 @@ class LinuxHardware(Hardware):
                     if "device" in folder:
                         virtual = 0
                         break
-            d = {}
-            d['virtual'] = virtual
-            d['links'] = {}
+            d = {'virtual': virtual, 'links': {}}
             for (link_type, link_values) in iteritems(links):
                 d['links'][link_type] = link_values.get(block, [])
             diskname = os.path.basename(sysdir)

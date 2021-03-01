@@ -119,9 +119,8 @@ def check_required_together(terms, parameters):
     for term in terms:
         counts = [count_terms(field, parameters) for field in term]
         non_zero = [c for c in counts if c > 0]
-        if len(non_zero) > 0:
-            if 0 in counts:
-                results.append(term)
+        if non_zero and 0 in counts:
+            results.append(term)
     if results:
         for term in results:
             msg = "parameters are required together: %s" % ', '.join(term)
@@ -149,13 +148,14 @@ def check_required_by(requirements, parameters):
     for (key, value) in requirements.items():
         if key not in parameters or parameters[key] is None:
             continue
-        result[key] = []
         # Support strings (single-item lists)
         if isinstance(value, string_types):
             value = [value]
-        for required in value:
-            if required not in parameters or parameters[required] is None:
-                result[key].append(required)
+        result[key] = [
+            required
+            for required in value
+            if required not in parameters or parameters[required] is None
+        ]
 
     if result:
         for key, missing in result.items():
@@ -240,8 +240,7 @@ def check_required_if(requirements, parameters):
         return results
 
     for req in requirements:
-        missing = {}
-        missing['missing'] = []
+        missing = {'missing': []}
         max_missing_count = 0
         is_one_of = False
         if len(req) == 4:
@@ -376,7 +375,7 @@ def check_type_list(value):
 
     if isinstance(value, string_types):
         return value.split(",")
-    elif isinstance(value, int) or isinstance(value, float):
+    elif isinstance(value, (int, float)):
         return [str(value)]
 
     raise TypeError('%s cannot be converted to a list' % type(value))
@@ -449,7 +448,7 @@ def check_type_bool(value):
     if isinstance(value, bool):
         return value
 
-    if isinstance(value, string_types) or isinstance(value, (int, float)):
+    if isinstance(value, (string_types, int, float)):
         return boolean(value)
 
     raise TypeError('%s cannot be converted to a bool' % type(value))

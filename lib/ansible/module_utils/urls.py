@@ -350,11 +350,7 @@ if not HAS_MATCH_HOSTNAME:
             raise ValueError("%s must be an all-ascii string." % repr(ipname))
 
         # Set ipname in native string format
-        if sys.version_info < (3,):
-            n_ipname = b_ipname
-        else:
-            n_ipname = ipname
-
+        n_ipname = b_ipname if sys.version_info < (3,) else ipname
         if n_ipname.count('.') == 3:
             try:
                 return socket.inet_aton(n_ipname)
@@ -823,8 +819,13 @@ def RedirectHandlerFactory(follow_redirects=None, validate_certs=True, ca_path=N
             else:
                 # Do not preserve payload and filter headers
                 data = None
-                headers = dict((k, v) for k, v in req.headers.items()
-                               if k.lower() not in ("content-length", "content-type", "transfer-encoding"))
+                headers = {
+                    k: v
+                    for k, v in req.headers.items()
+                    if k.lower()
+                    not in ("content-length", "content-type", "transfer-encoding")
+                }
+
 
                 # http://tools.ietf.org/html/rfc7231#section-6.4.4
                 if code == 303 and method != 'HEAD':
@@ -1033,11 +1034,7 @@ class SSLValidationHandler(urllib_request.BaseHandler):
 
     def make_context(self, cafile, cadata):
         cafile = self.ca_path or cafile
-        if self.ca_path:
-            cadata = None
-        else:
-            cadata = cadata or None
-
+        cadata = None if self.ca_path else cadata or None
         if HAS_SSLCONTEXT:
             context = create_default_context(cafile=cafile)
         elif HAS_URLLIB3_PYOPENSSLCONTEXT:
@@ -1073,37 +1070,29 @@ class SSLValidationHandler(urllib_request.BaseHandler):
                                      " Please make sure you export https proxy as 'https_proxy=<SCHEME>://<IP_ADDRESS>:<PORT>'")
 
                 s = socket.create_connection((proxy_hostname, port))
-                if proxy_parts.get('scheme') == 'http':
-                    s.sendall(to_bytes(self.CONNECT_COMMAND % (self.hostname, self.port), errors='surrogate_or_strict'))
-                    if proxy_parts.get('username'):
-                        credentials = "%s:%s" % (proxy_parts.get('username', ''), proxy_parts.get('password', ''))
-                        s.sendall(b'Proxy-Authorization: Basic %s\r\n' % base64.b64encode(to_bytes(credentials, errors='surrogate_or_strict')).strip())
-                    s.sendall(b'\r\n')
-                    connect_result = b""
-                    while connect_result.find(b"\r\n\r\n") <= 0:
-                        connect_result += s.recv(4096)
-                        # 128 kilobytes of headers should be enough for everyone.
-                        if len(connect_result) > 131072:
-                            raise ProxyError('Proxy sent too verbose headers. Only 128KiB allowed.')
-                    self.validate_proxy_response(connect_result)
-                    if context:
-                        ssl_s = context.wrap_socket(s, server_hostname=self.hostname)
-                    elif HAS_URLLIB3_SSL_WRAP_SOCKET:
-                        ssl_s = ssl_wrap_socket(s, ca_certs=tmp_ca_cert_path, cert_reqs=ssl.CERT_REQUIRED, ssl_version=PROTOCOL, server_hostname=self.hostname)
-                    else:
-                        ssl_s = ssl.wrap_socket(s, ca_certs=tmp_ca_cert_path, cert_reqs=ssl.CERT_REQUIRED, ssl_version=PROTOCOL)
-                        match_hostname(ssl_s.getpeercert(), self.hostname)
-                else:
+                if proxy_parts.get('scheme') != 'http':
                     raise ProxyError('Unsupported proxy scheme: %s. Currently ansible only supports HTTP proxies.' % proxy_parts.get('scheme'))
+                s.sendall(to_bytes(self.CONNECT_COMMAND % (self.hostname, self.port), errors='surrogate_or_strict'))
+                if proxy_parts.get('username'):
+                    credentials = "%s:%s" % (proxy_parts.get('username', ''), proxy_parts.get('password', ''))
+                    s.sendall(b'Proxy-Authorization: Basic %s\r\n' % base64.b64encode(to_bytes(credentials, errors='surrogate_or_strict')).strip())
+                s.sendall(b'\r\n')
+                connect_result = b""
+                while connect_result.find(b"\r\n\r\n") <= 0:
+                    connect_result += s.recv(4096)
+                    # 128 kilobytes of headers should be enough for everyone.
+                    if len(connect_result) > 131072:
+                        raise ProxyError('Proxy sent too verbose headers. Only 128KiB allowed.')
+                self.validate_proxy_response(connect_result)
             else:
                 s = socket.create_connection((self.hostname, self.port))
-                if context:
-                    ssl_s = context.wrap_socket(s, server_hostname=self.hostname)
-                elif HAS_URLLIB3_SSL_WRAP_SOCKET:
-                    ssl_s = ssl_wrap_socket(s, ca_certs=tmp_ca_cert_path, cert_reqs=ssl.CERT_REQUIRED, ssl_version=PROTOCOL, server_hostname=self.hostname)
-                else:
-                    ssl_s = ssl.wrap_socket(s, ca_certs=tmp_ca_cert_path, cert_reqs=ssl.CERT_REQUIRED, ssl_version=PROTOCOL)
-                    match_hostname(ssl_s.getpeercert(), self.hostname)
+            if context:
+                ssl_s = context.wrap_socket(s, server_hostname=self.hostname)
+            elif HAS_URLLIB3_SSL_WRAP_SOCKET:
+                ssl_s = ssl_wrap_socket(s, ca_certs=tmp_ca_cert_path, cert_reqs=ssl.CERT_REQUIRED, ssl_version=PROTOCOL, server_hostname=self.hostname)
+            else:
+                ssl_s = ssl.wrap_socket(s, ca_certs=tmp_ca_cert_path, cert_reqs=ssl.CERT_REQUIRED, ssl_version=PROTOCOL)
+                match_hostname(ssl_s.getpeercert(), self.hostname)
             # close the ssl connection
             # ssl_s.unwrap()
             s.close()
@@ -1132,11 +1121,7 @@ def maybe_add_ssl_handler(url, validate_certs, ca_path=None):
 def getpeercert(response, binary_form=False):
     """ Attempt to get the peer certificate of the response from urlopen. """
     # The response from urllib2.open() is different across Python 2 and 3
-    if PY3:
-        socket = response.fp.raw._sock
-    else:
-        socket = response.fp._sock.fp._sock
-
+    socket = response.fp.raw._sock if PY3 else response.fp._sock.fp._sock
     try:
         return socket.getpeercert(binary_form)
     except AttributeError:
@@ -1356,7 +1341,7 @@ class Request:
                 handlers.append(authhandler)
                 handlers.append(digest_authhandler)
 
-            elif username and force_basic_auth:
+            elif username:
                 headers["Authorization"] = basic_auth_header(username, password)
 
             else:
@@ -1760,7 +1745,7 @@ def fetch_url(module, url, data=None, headers=None, method=None,
                      client_key=client_key, cookies=cookies, use_gssapi=use_gssapi,
                      unix_socket=unix_socket, ca_path=ca_path)
         # Lowercase keys, to conform to py2 behavior, so that py3 and py2 are predictable
-        info.update(dict((k.lower(), v) for k, v in r.info().items()))
+        info.update({k.lower(): v for k, v in r.info().items()})
 
         # Don't be lossy, append header values for duplicate headers
         # In Py2 there is nothing that needs done, py2 does this for us
@@ -1777,7 +1762,7 @@ def fetch_url(module, url, data=None, headers=None, method=None,
 
         # parse the cookies into a nice dictionary
         cookie_list = []
-        cookie_dict = dict()
+        cookie_dict = {}
         # Python sorts cookies in order of most specific (ie. longest) path first. See ``CookieJar._cookie_attrs``
         # Cookies with the same path are reversed from response order.
         # This code makes no assumptions about that, and accepts the order given by python
@@ -1808,7 +1793,7 @@ def fetch_url(module, url, data=None, headers=None, method=None,
         # Try to add exception info to the output but don't fail if we can't
         try:
             # Lowercase keys, to conform to py2 behavior, so that py3 and py2 are predictable
-            info.update(dict((k.lower(), v) for k, v in e.info().items()))
+            info.update({k.lower(): v for k, v in e.info().items()})
         except Exception:
             pass
 

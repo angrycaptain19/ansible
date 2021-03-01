@@ -773,7 +773,7 @@ class GalaxyCLI(CLI):
 
         def comment_ify(v):
             if isinstance(v, list):
-                v = ". ".join([l.rstrip('.') for l in v])
+                v = ". ".join(l.rstrip('.') for l in v)
 
             v = link_pattern.sub(r"\1 <\2>", v)
             v = const_pattern.sub(r"'\1'", v)
@@ -892,7 +892,6 @@ class GalaxyCLI(CLI):
 
         galaxy_type = context.CLIARGS['type']
         init_path = context.CLIARGS['init_path']
-        force = context.CLIARGS['force']
         obj_skeleton = context.CLIARGS['{0}_skeleton'.format(galaxy_type)]
 
         obj_name = context.CLIARGS['{0}_name'.format(galaxy_type)]
@@ -939,6 +938,7 @@ class GalaxyCLI(CLI):
         b_obj_path = to_bytes(obj_path, errors='surrogate_or_strict')
 
         if os.path.exists(b_obj_path):
+            force = context.CLIARGS['force']
             if os.path.isfile(obj_path):
                 raise AnsibleError("- the path %s already exists, but is a file - aborting" % to_native(obj_path))
             elif not force:
@@ -1056,7 +1056,7 @@ class GalaxyCLI(CLI):
                 if remote_data:
                     role_info.update(remote_data)
 
-            elif context.CLIARGS['offline'] and not gr._exists:
+            elif not gr._exists:
                 data = u"- the role %s was not found" % role
                 break
 
@@ -1228,7 +1228,7 @@ class GalaxyCLI(CLI):
             # query the galaxy API for the role data
 
             if role.install_info is not None:
-                if role.install_info['version'] != role.version or force:
+                if role.install_info['version'] != role.version:
                     if force:
                         display.display('- changing role %s from %s to %s' %
                                         (role.name, role.install_info['version'], role.version or "unspecified"))
@@ -1237,10 +1237,13 @@ class GalaxyCLI(CLI):
                         display.warning('- %s (%s) is already installed - use --force to change version to %s' %
                                         (role.name, role.install_info['version'], role.version or "unspecified"))
                         continue
+                elif force:
+                    display.display('- changing role %s from %s to %s' %
+                                    (role.name, role.install_info['version'], role.version or "unspecified"))
+                    role.remove()
                 else:
-                    if not force:
-                        display.display('- %s is already installed, skipping.' % str(role))
-                        continue
+                    display.display('- %s is already installed, skipping.' % str(role))
+                    continue
 
             try:
                 installed = role.install()
@@ -1251,9 +1254,7 @@ class GalaxyCLI(CLI):
 
             # install dependencies, if we want them
             if not no_deps and installed:
-                if not role.metadata:
-                    display.warning("Meta file %s is empty. Skipping dependencies." % role.path)
-                else:
+                if role.metadata:
                     role_dependencies = (role.metadata.get('dependencies') or []) + role.requirements
                     for dep in role_dependencies:
                         display.debug('Installing dep %s' % dep)
@@ -1271,7 +1272,16 @@ class GalaxyCLI(CLI):
                             else:
                                 display.display('- dependency %s already pending installation.' % dep_role.name)
                         else:
-                            if dep_role.install_info['version'] != dep_role.version:
+                            if (
+                                dep_role.install_info['version']
+                                == dep_role.version
+                            ):
+                                if force_deps:
+                                    requirements.append(dep_role)
+                                else:
+                                    display.display('- dependency %s is already installed, skipping.' % dep_role.name)
+
+                            else:
                                 if force_deps:
                                     display.display('- changing dependent role %s from %s to %s' %
                                                     (dep_role.name, dep_role.install_info['version'], dep_role.version or "unspecified"))
@@ -1280,12 +1290,8 @@ class GalaxyCLI(CLI):
                                 else:
                                     display.warning('- dependency %s (%s) from role %s differs from already installed version (%s), skipping' %
                                                     (to_text(dep_role), dep_role.version, role.name, dep_role.install_info['version']))
-                            else:
-                                if force_deps:
-                                    requirements.append(dep_role)
-                                else:
-                                    display.display('- dependency %s is already installed, skipping.' % dep_role.name)
-
+                else:
+                    display.warning("Meta file %s is empty. Skipping dependencies." % role.path)
             if not installed:
                 display.warning("- %s was NOT installed successfully." % role.name)
                 self.exit_without_ignore()
@@ -1534,9 +1540,11 @@ class GalaxyCLI(CLI):
         else:
             data.append(u"Found %d roles matching your search:" % response['count'])
 
-        max_len = []
-        for role in response['results']:
-            max_len.append(len(role['username'] + '.' + role['name']))
+        max_len = [
+            len(role['username'] + '.' + role['name'])
+            for role in response['results']
+        ]
+
         name_len = max(max_len)
         format_str = u" %%-%ds %%s" % name_len
         data.append(u'')
@@ -1552,14 +1560,6 @@ class GalaxyCLI(CLI):
 
     def execute_import(self):
         """ used to import a role into Ansible Galaxy """
-
-        colors = {
-            'INFO': 'normal',
-            'WARNING': C.COLOR_WARN,
-            'ERROR': C.COLOR_ERROR,
-            'SUCCESS': C.COLOR_OK,
-            'FAILED': C.COLOR_ERROR,
-        }
 
         github_user = to_text(context.CLIARGS['github_user'], errors='surrogate_or_strict')
         github_repo = to_text(context.CLIARGS['github_repo'], errors='surrogate_or_strict')
@@ -1592,6 +1592,14 @@ class GalaxyCLI(CLI):
             # Get the status of the import
             msg_list = []
             finished = False
+            colors = {
+                'INFO': 'normal',
+                'WARNING': C.COLOR_WARN,
+                'ERROR': C.COLOR_ERROR,
+                'SUCCESS': C.COLOR_OK,
+                'FAILED': C.COLOR_ERROR,
+            }
+
             while not finished:
                 task = self.api.get_import_task(task_id=task[0]['id'])
                 for msg in task[0]['summary_fields']['task_messages']:

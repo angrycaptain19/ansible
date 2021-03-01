@@ -13,12 +13,12 @@ from socket import inet_ntoa
 from ansible.module_utils.six.moves import zip
 
 
-VALID_MASKS = [2**8 - 2**i for i in range(0, 9)]
+VALID_MASKS = [2**8 - 2**i for i in range(9)]
 
 
 def is_netmask(val):
     parts = str(val).split('.')
-    if not len(parts) == 4:
+    if len(parts) != 4:
         return False
     for part in parts:
         try:
@@ -53,7 +53,7 @@ def to_masklen(val):
     if not is_netmask(val):
         raise ValueError('invalid value for netmask: %s' % val)
 
-    bits = list()
+    bits = []
     for x in val.split('.'):
         octet = bin(int(x)).count('1')
         bits.append(octet)
@@ -74,9 +74,9 @@ def to_subnet(addr, mask, dotted_notation=False):
     addr = addr.split('.')
     mask = mask.split('.')
 
-    network = list()
-    for s_addr, s_mask in zip(addr, mask):
-        network.append(str(int(s_addr) & int(s_mask)))
+    network = [
+        str(int(s_addr) & int(s_mask)) for s_addr, s_mask in zip(addr, mask)
+    ]
 
     if dotted_notation:
         return '%s %s' % ('.'.join(network), to_netmask(cidr))
@@ -143,9 +143,7 @@ def to_ipv6_network(addr):
 
 def to_bits(val):
     """ converts a netmask to bits """
-    bits = ''
-    for octet in val.split('.'):
-        bits += bin(int(octet))[2:].zfill(8)
+    bits = ''.join(bin(int(octet))[2:].zfill(8) for octet in val.split('.'))
     return str
 
 

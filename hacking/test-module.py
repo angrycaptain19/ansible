@@ -66,12 +66,19 @@ def parse():
                       help="module argument string")
     parser.add_option('-D', '--debugger', dest='debugger',
                       help="path to python debugger (e.g. /usr/bin/pdb)")
-    parser.add_option('-I', '--interpreter', dest='interpreter',
-                      help="path to interpreter to use for this module"
-                      " (e.g. ansible_python_interpreter=/usr/bin/python)",
-                      metavar='INTERPRETER_TYPE=INTERPRETER_PATH',
-                      default="ansible_python_interpreter=%s" %
-                      (sys.executable if sys.executable else '/usr/bin/python'))
+    parser.add_option(
+        '-I',
+        '--interpreter',
+        dest='interpreter',
+        help="path to interpreter to use for this module"
+        " (e.g. ansible_python_interpreter=/usr/bin/python)",
+        metavar='INTERPRETER_TYPE=INTERPRETER_PATH',
+        default=(
+            "ansible_python_interpreter=%s"
+            % (sys.executable or '/usr/bin/python')
+        ),
+    )
+
     parser.add_option('-c', '--check', dest='check', action='store_true',
                       help="run the module in check mode")
     parser.add_option('-n', '--noexecute', dest='execute', action='store_false',
@@ -80,27 +87,26 @@ def parse():
                       help="Filename for resulting module",
                       default="~/.ansible_module_generated")
     options, args = parser.parse_args()
-    if not options.module_path:
-        parser.print_help()
-        sys.exit(1)
-    else:
+    if options.module_path:
         return options, args
+
+    parser.print_help()
+    sys.exit(1)
 
 
 def write_argsfile(argstring, json=False):
     """ Write args to a file for old-style module's use. """
     argspath = os.path.expanduser("~/.ansible_test_module_arguments")
-    argsfile = open(argspath, 'w')
-    if json:
-        args = parse_kv(argstring)
-        argstring = jsonify(args)
-    argsfile.write(argstring)
-    argsfile.close()
+    with open(argspath, 'w') as argsfile:
+        if json:
+            args = parse_kv(argstring)
+            argstring = jsonify(args)
+        argsfile.write(argstring)
     return argspath
 
 
 def get_interpreters(interpreter):
-    result = dict()
+    result = {}
     if interpreter:
         if '=' not in interpreter:
             print("interpreter must by in the form of ansible_python_interpreter=/usr/bin/python")

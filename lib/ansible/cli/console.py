@@ -62,7 +62,7 @@ class ConsoleCLI(CLI, cmd.Cmd):
         self.pattern = None
         self.variable_manager = None
         self.loader = None
-        self.passwords = dict()
+        self.passwords = {}
 
         self.modules = None
         self.cwd = '*'
@@ -383,19 +383,20 @@ class ConsoleCLI(CLI, cmd.Cmd):
     do_EOF = do_exit
 
     def helpdefault(self, module_name):
-        if module_name in self.modules:
-            in_path = module_loader.find_plugin(module_name)
-            if in_path:
-                oc, a, _, _ = plugin_docs.get_docstring(in_path, fragment_loader)
-                if oc:
-                    display.display(oc['short_description'])
-                    display.display('Parameters:')
-                    for opt in oc['options'].keys():
-                        display.display('  ' + stringc(opt, self.NORMAL_PROMPT) + ' ' + oc['options'][opt]['description'][0])
-                else:
-                    display.error('No documentation found for %s.' % module_name)
+        if module_name not in self.modules:
+            return
+        in_path = module_loader.find_plugin(module_name)
+        if in_path:
+            oc, a, _, _ = plugin_docs.get_docstring(in_path, fragment_loader)
+            if oc:
+                display.display(oc['short_description'])
+                display.display('Parameters:')
+                for opt in oc['options'].keys():
+                    display.display('  ' + stringc(opt, self.NORMAL_PROMPT) + ' ' + oc['options'][opt]['description'][0])
             else:
-                display.error('%s is not a valid command, use ? to list all valid commands.' % module_name)
+                display.error('No documentation found for %s.' % module_name)
+        else:
+            display.error('%s is not a valid command, use ? to list all valid commands.' % module_name)
 
     def complete_cd(self, text, line, begidx, endidx):
         mline = line.partition(' ')[2]

@@ -132,9 +132,11 @@ class HPUXHardware(Hardware):
         rc, out, err = self.module.run_command("/usr/sbin/swapinfo -m -d -f -q")
         memory_facts['swaptotal_mb'] = int(out.strip())
         rc, out, err = self.module.run_command("/usr/sbin/swapinfo -m -d -f | egrep '^dev|^fs'", use_unsafe_shell=True)
-        swap = 0
-        for line in out.strip().splitlines():
-            swap += int(re.sub(' +', ' ', line).split(' ')[3].strip())
+        swap = sum(
+            int(re.sub(' +', ' ', line).split(' ')[3].strip())
+            for line in out.strip().splitlines()
+        )
+
         memory_facts['swapfree_mb'] = swap
 
         return memory_facts

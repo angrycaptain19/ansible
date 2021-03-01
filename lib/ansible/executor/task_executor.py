@@ -171,14 +171,13 @@ class TaskExecutor:
                         try:
                             res[k] = _clean_res(res[k], errors=errors)
                         except UnicodeError:
-                            if k == 'diff':
-                                # If this is a diff, substitute a replacement character if the value
-                                # is undecodable as utf8.  (Fix #21804)
-                                display.warning("We were unable to decode all characters in the module return data."
-                                                " Replaced some in an effort to return as much as possible")
-                                res[k] = _clean_res(res[k], errors='surrogate_then_replace')
-                            else:
+                            if k != 'diff':
                                 raise
+                            # If this is a diff, substitute a replacement character if the value
+                            # is undecodable as utf8.  (Fix #21804)
+                            display.warning("We were unable to decode all characters in the module return data."
+                                            " Replaced some in an effort to return as much as possible")
+                            res[k] = _clean_res(res[k], errors='surrogate_then_replace')
                 elif isinstance(res, list):
                     for idx, item in enumerate(res):
                         res[idx] = _clean_res(item, errors=errors)
@@ -222,31 +221,30 @@ class TaskExecutor:
             # to avoid reprocessing the loop
             items = loop_cache
         elif self._task.loop_with:
-            if self._task.loop_with in self._shared_loader_obj.lookup_loader:
-                fail = True
-                if self._task.loop_with == 'first_found':
-                    # first_found loops are special. If the item is undefined then we want to fall through to the next value rather than failing.
-                    fail = False
-
-                loop_terms = listify_lookup_plugin_terms(terms=self._task.loop, templar=templar, loader=self._loader, fail_on_undefined=fail,
-                                                         convert_bare=False)
-                if not fail:
-                    loop_terms = [t for t in loop_terms if not templar.is_template(t)]
-
-                # get lookup
-                mylookup = self._shared_loader_obj.lookup_loader.get(self._task.loop_with, loader=self._loader, templar=templar)
-
-                # give lookup task 'context' for subdir (mostly needed for first_found)
-                for subdir in ['template', 'var', 'file']:  # TODO: move this to constants?
-                    if subdir in self._task.action:
-                        break
-                setattr(mylookup, '_subdir', subdir + 's')
-
-                # run lookup
-                items = wrap_var(mylookup.run(terms=loop_terms, variables=self._job_vars, wantlist=True))
-            else:
+            if self._task.loop_with not in self._shared_loader_obj.lookup_loader:
                 raise AnsibleError("Unexpected failure in finding the lookup named '%s' in the available lookup plugins" % self._task.loop_with)
 
+            fail = True
+            if self._task.loop_with == 'first_found':
+                # first_found loops are special. If the item is undefined then we want to fall through to the next value rather than failing.
+                fail = False
+
+            loop_terms = listify_lookup_plugin_terms(terms=self._task.loop, templar=templar, loader=self._loader, fail_on_undefined=fail,
+                                                     convert_bare=False)
+            if not fail:
+                loop_terms = [t for t in loop_terms if not templar.is_template(t)]
+
+            # get lookup
+            mylookup = self._shared_loader_obj.lookup_loader.get(self._task.loop_with, loader=self._loader, templar=templar)
+
+            # give lookup task 'context' for subdir (mostly needed for first_found)
+            for subdir in ['template', 'var', 'file']:  # TODO: move this to constants?
+                if subdir in self._task.action:
+                    break
+            setattr(mylookup, '_subdir', subdir + 's')
+
+            # run lookup
+            items = wrap_var(mylookup.run(terms=loop_terms, variables=self._job_vars, wantlist=True))
         elif self._task.loop is not None:
             items = templar.template(self._task.loop)
             if not isinstance(items, list):
@@ -325,7 +323,7 @@ class TaskExecutor:
                     task_vars['ansible_loop']['nextitem'] = items[item_index + 1]
                 except IndexError:
                     pass
-                if item_index - 1 >= 0:
+                if item_index >= 1:
                     task_vars['ansible_loop']['previtem'] = items[item_index - 1]
 
             # Update template vars to reflect current loop iteration
@@ -886,12 +884,11 @@ class TaskExecutor:
         if plugin.get('type'):
             option_vars.extend(C.config.get_plugin_vars(plugin['type'], plugin['name']))
 
-        options = {}
-        for k in option_vars:
-            if k in final_vars:
-                options[k] = templar.template(final_vars[k])
-
-        return options
+        return {
+            k: templar.template(final_vars[k])
+            for k in option_vars
+            if k in final_vars
+        }
 
     def _set_plugin_options(self, plugin_type, variables, templar, task_keys):
         try:
@@ -901,10 +898,12 @@ class TaskExecutor:
             plugin = getattr(self._connection, plugin_type)
 
         option_vars = C.config.get_plugin_vars(plugin_type, plugin._load_name)
-        options = {}
-        for k in option_vars:
-            if k in variables:
-                options[k] = templar.template(variables[k])
+        options = {
+            k: templar.template(variables[k])
+            for k in option_vars
+            if k in variables
+        }
+
         # TODO move to task method?
         plugin.set_options(task_keys=task_keys, var_options=options)
 
@@ -1091,10 +1090,9 @@ def start_connection(play_context, variables, task_uuid):
                     display.vvvv(message, host=play_context.remote_addr)
 
     if 'error' in result:
-        if play_context.verbosity > 2:
-            if result.get('exception'):
-                msg = "The full traceback is:\n" + result['exception']
-                display.display(msg, color=C.COLOR_ERROR)
+        if play_context.verbosity > 2 and result.get('exception'):
+            msg = "The full traceback is:\n" + result['exception']
+            display.display(msg, color=C.COLOR_ERROR)
         raise AnsibleError(result['error'])
 
     return result['socket_path']
